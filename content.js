@@ -1158,12 +1158,13 @@ function setEngineStatus(state, text) {
 function makeDraggable(el, handle) {
   let startX, startY, initLeft, initTop;
   handle.style.cursor = 'grab';
+  handle.style.touchAction = 'none';
 
-  handle.addEventListener('mousedown', (e) => {
+  const onStart = (e) => {
     if (e.target.tagName === 'BUTTON') return;
-    e.preventDefault();
-    startX = e.clientX;
-    startY = e.clientY;
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
     const rect = el.getBoundingClientRect();
     initLeft = rect.left;
     initTop = rect.top;
@@ -1171,17 +1172,31 @@ function makeDraggable(el, handle) {
     el.style.right = 'auto';
     el.style.bottom = 'auto';
 
-    const onMove = (e) => {
-      el.style.left = `${initLeft + e.clientX - startX}px`;
-      el.style.top  = `${initTop  + e.clientY - startY}px`;
+    const onMove = (evt) => {
+      const moveTouch = evt.touches ? evt.touches[0] : evt;
+      const dx = moveTouch.clientX - startX;
+      const dy = moveTouch.clientY - startY;
+      el.style.left = `${initLeft + dx}px`;
+      el.style.top  = `${initTop  + dy}px`;
     };
-    const onUp = () => {
+
+    const onEnd = () => {
       document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
     };
+
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  };
+
+  handle.addEventListener('mousedown', onStart);
+  handle.addEventListener('touchstart', onStart, { passive: false });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
