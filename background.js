@@ -99,9 +99,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
   }
 
-  // === From offscreen → forward to content script ===
+  // === From offscreen → forward to content script (Chess.com + Lichess) ===
   if (msg.source === 'offscreen') {
-    chrome.tabs.query({ url: '*://www.chess.com/*' }, (tabs) => {
+    chrome.tabs.query({ url: ['*://www.chess.com/*', '*://lichess.org/*'] }, (tabs) => {
       for (const tab of tabs) {
         chrome.tabs.sendMessage(tab.id, {
           source: 'background',

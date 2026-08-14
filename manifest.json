@@ -27,12 +27,14 @@
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "host_permissions": [
-    "*://www.chess.com/*"
+    "*://www.chess.com/*",
+    "*://lichess.org/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "*://www.chess.com/*"
+        "*://www.chess.com/*",
+        "*://lichess.org/*"
       ],
       "js": [
         "content.js"

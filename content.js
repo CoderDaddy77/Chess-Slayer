@@ -26,6 +26,11 @@ const PIECE_MAP = {
 const FILES = 'abcdefgh';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Site detection
+// ─────────────────────────────────────────────────────────────────────────────
+const IS_LICHESS = location.hostname.includes('lichess.org');
+
+// ─────────────────────────────────────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────────────────────────────────────
 let settings = {
@@ -77,6 +82,7 @@ let engineStatus = null;
 // Utility: FEN extraction from Chess.com DOM
 // ─────────────────────────────────────────────────────────────────────────────
 function getBoardEl() {
+  if (IS_LICHESS) return document.querySelector('cg-board');
   return document.querySelector('chess-board') ||
          document.querySelector('.board') ||
          document.querySelector('[class*="board-layout-chessboard"]') ||
@@ -84,6 +90,8 @@ function getBoardEl() {
 }
 
 function extractFEN() {
+  if (IS_LICHESS) return extractLichessFEN();
+
   const board = getBoardEl();
   if (!board) return null;
 
@@ -129,6 +137,142 @@ function extractFEN() {
   const turn = detectTurn();
   const castling = detectCastling(position);
 
+  return { fen: `${fenPos} ${turn} ${castling} - 0 1`, turn };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lichess DOM helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const LICHESS_PIECE_MAP = {
+  pawn:   { w: 'P', b: 'p' },
+  knight: { w: 'N', b: 'n' },
+  bishop: { w: 'B', b: 'b' },
+  rook:   { w: 'R', b: 'r' },
+  queen:  { w: 'Q', b: 'q' },
+  king:   { w: 'K', b: 'k' },
+};
+
+function detectLichessFlipped() {
+  // The cg-wrap element has orientation-white or orientation-black class
+  const wrap = document.querySelector('.cg-wrap') ||
+               document.querySelector('cg-helper');
+  if (wrap) {
+    if (wrap.className.includes('orientation-black')) return true;
+    if (wrap.className.includes('orientation-white')) return false;
+  }
+  // Fallback: check if bottom player color element is black
+  const bottomColor = document.querySelector('.orientation-black');
+  return !!bottomColor;
+}
+
+function detectLichessTurn() {
+  const playerColor   = isFlipped ? 'b' : 'w';
+  const opponentColor = isFlipped ? 'w' : 'b';
+
+  // Method 1: Online live games
+  // Lichess adds 'manipulable' class to cg-wrap only when it's your turn to move
+  const wrap = document.querySelector('.cg-wrap');
+  if (wrap) {
+    const isManipulable = wrap.classList.contains('manipulable');
+    const hasClock = !!document.querySelector('.rclock, .rclock-bottom, .rclock-top');
+    if (hasClock) {
+      // In live game: manipulable = my turn, not manipulable = opponent turn
+      return isManipulable ? playerColor : opponentColor;
+    }
+  }
+
+  // Method 2: Clock selectors
+  const bottomActive = document.querySelector('.rclock-bottom.rclock-turn');
+  const topActive    = document.querySelector('.rclock-top.rclock-turn');
+  if (bottomActive) return isFlipped ? 'b' : 'w';
+  if (topActive)    return isFlipped ? 'w' : 'b';
+
+  // Method 3: Move count fallback (analysis / vs computer)
+  const moves = document.querySelectorAll('l4x move, .moves move, .tview2 move, [data-ply]');
+  if (moves.length > 0) return moves.length % 2 === 0 ? 'w' : 'b';
+
+  return 'w';
+}
+
+
+function extractLichessFEN() {
+  const board = getBoardEl(); // returns cg-board
+  if (!board) return null;
+
+  const boardRect = board.getBoundingClientRect();
+  const sqSize = boardRect.width / 8;
+  if (sqSize < 1) return null;
+
+  // Set global isFlipped for Lichess
+  isFlipped = detectLichessFlipped();
+
+  const position = {};
+  // 'piece' is a custom element in Lichess — try multiple selectors
+  const pieces = board.querySelectorAll('piece') ||
+                 board.querySelectorAll('[class*="piece"]');
+  if (!pieces || pieces.length === 0) return null;
+
+  for (const piece of pieces) {
+    const classes = [...piece.classList];
+    const color = classes.includes('white') ? 'w' : classes.includes('black') ? 'b' : null;
+    if (!color) continue;
+
+    const pieceType = ['king','queen','rook','bishop','knight','pawn'].find(t => classes.includes(t));
+    if (!pieceType) continue;
+
+    const fenChar = LICHESS_PIECE_MAP[pieceType][color];
+
+    // Parse CSS transform: translate(Xpx, Ypx) or matrix(..., X, Y)
+    const transform = piece.style.transform || window.getComputedStyle(piece).transform || '';
+    let px = 0, py = 0;
+    const tMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    const mMatch = transform.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+),\s*([-\d.]+)\)/);
+
+    if (tMatch) {
+      px = parseFloat(tMatch[1]);
+      py = parseFloat(tMatch[2]);
+    } else if (mMatch) {
+      px = parseFloat(mMatch[1]);
+      py = parseFloat(mMatch[2]);
+    } else {
+      // Try percentage-based transform fallback
+      const pctMatch = transform.match(/translate\(([-\d.]+)%,\s*([-\d.]+)%\)/);
+      if (pctMatch) {
+        px = (parseFloat(pctMatch[1]) / 100) * boardRect.width;
+        py = (parseFloat(pctMatch[2]) / 100) * boardRect.height;
+      } else continue;
+    }
+
+    let file = Math.round(px / sqSize);
+    let rank = 7 - Math.round(py / sqSize);
+
+    if (isFlipped) {
+      file = 7 - file;
+      rank = 7 - rank;
+    }
+
+    if (file < 0 || file > 7 || rank < 0 || rank > 7) continue;
+    position[`${file},${rank}`] = fenChar;
+  }
+
+  if (Object.keys(position).length === 0) return null;
+
+  let fenPos = '';
+  for (let rank = 7; rank >= 0; rank--) {
+    let empty = 0;
+    for (let file = 0; file < 8; file++) {
+      const pc = position[`${file},${rank}`];
+      if (pc) {
+        if (empty > 0) { fenPos += empty; empty = 0; }
+        fenPos += pc;
+      } else empty++;
+    }
+    if (empty > 0) fenPos += empty;
+    if (rank > 0) fenPos += '/';
+  }
+
+  const turn = detectLichessTurn();
+  const castling = detectCastling(position);
   return { fen: `${fenPos} ${turn} ${castling} - 0 1`, turn };
 }
 
@@ -479,47 +623,71 @@ function showAccuracyBadge(classification) {
   oldBadges.forEach(b => b.remove());
 
 
-  // Place badge on the board at the DESTINATION square
   const board = getBoardEl();
   if (!board) return;
 
-  // Find Chess.com's highlighted squares (from & to)
-  const highlights = board.querySelectorAll('.highlight');
-  if (highlights.length < 2) return;
-
-  // Find the TO square: check which highlight has a piece on the same square
-  // Chess.com pieces have classes like "piece wp square-55"
-  let toSquareClass = null;
-  for (const hl of highlights) {
-    const sqClass = hl.className.match(/square-(\d\d)/);
-    if (!sqClass) continue;
-    // Check if there's a piece on this square
-    const piece = board.querySelector(`.piece.square-${sqClass[1]}`);
-    if (piece) {
-      toSquareClass = sqClass[1];
-      break;  // First highlight with a piece = destination
-    }
-  }
-
-  // Fallback: use the second highlight
-  if (!toSquareClass) {
-    const fallback = highlights[1].className.match(/square-(\d\d)/);
-    if (fallback) toSquareClass = fallback[1];
-  }
-  if (!toSquareClass) return;
-
-  const file = parseInt(toSquareClass[0]) - 1;
-  const rank = parseInt(toSquareClass[1]) - 1;
   const boardRect = board.getBoundingClientRect();
   const sqSize = boardRect.width / 8;
-
   let px, py;
-  if (isFlipped) {
-    px = (7 - file) * sqSize;
-    py = rank * sqSize;
+
+  if (IS_LICHESS) {
+    // Lichess last-move squares: <square class="last-move"> with transform positioning
+    const lastMoves = board.querySelectorAll('square.last-move');
+    if (lastMoves.length === 0) return;
+
+    // Find the TO square: the last-move square that has a piece on it
+    let toTransform = null;
+    for (const sq of lastMoves) {
+      const t = sq.style.transform || '';
+      const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      if (!m) continue;
+      const sqPx = parseFloat(m[1]);
+      const sqPy = parseFloat(m[2]);
+      // Check if any piece sits at this position
+      for (const piece of board.querySelectorAll('piece')) {
+        const pt = piece.style.transform || '';
+        const pm = pt.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+        if (pm && Math.abs(parseFloat(pm[1]) - sqPx) < 5 && Math.abs(parseFloat(pm[2]) - sqPy) < 5) {
+          toTransform = { x: sqPx, y: sqPy };
+          break;
+        }
+      }
+      if (toTransform) break;
+    }
+
+    // Fallback: last element in last-move list
+    if (!toTransform) {
+      const last = lastMoves[lastMoves.length - 1];
+      const m = (last.style.transform || '').match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      if (m) toTransform = { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+    }
+    if (!toTransform) return;
+
+    px = toTransform.x;
+    py = toTransform.y;
+
   } else {
-    px = file * sqSize;
-    py = (7 - rank) * sqSize;
+    // Chess.com: highlighted squares with square-XY class
+    const highlights = board.querySelectorAll('.highlight');
+    if (highlights.length < 2) return;
+
+    let toSquareClass = null;
+    for (const hl of highlights) {
+      const sqClass = hl.className.match(/square-(\d\d)/);
+      if (!sqClass) continue;
+      const piece = board.querySelector(`.piece.square-${sqClass[1]}`);
+      if (piece) { toSquareClass = sqClass[1]; break; }
+    }
+    if (!toSquareClass) {
+      const fallback = highlights[1].className.match(/square-(\d\d)/);
+      if (fallback) toSquareClass = fallback[1];
+    }
+    if (!toSquareClass) return;
+
+    const file = parseInt(toSquareClass[0]) - 1;
+    const rank = parseInt(toSquareClass[1]) - 1;
+    if (isFlipped) { px = (7 - file) * sqSize; py = rank * sqSize; }
+    else           { px = file * sqSize;         py = (7 - rank) * sqSize; }
   }
 
   // Create on-board badge at TOP-RIGHT corner of destination square
@@ -528,16 +696,14 @@ function showAccuracyBadge(classification) {
   badge.textContent = classification.icon;
   badge.style.background = classification.color;
   badge.style.left = (board.offsetLeft + px + sqSize) + 'px';
-  badge.style.top = (board.offsetTop + py) + 'px';
+  badge.style.top  = (board.offsetTop  + py)          + 'px';
 
-  // Append to board's parent
   const parent = board.parentElement;
   if (parent) {
     parent.style.position = 'relative';
     parent.appendChild(badge);
   }
 
-  // Remove after 4 seconds with fade
   setTimeout(() => {
     badge.style.transition = 'opacity 0.3s ease';
     badge.style.opacity = '0';
@@ -568,9 +734,31 @@ function createEvalBar() {
   injectNextToBoard(evalBarEl);
 }
 
+function updateLichessEvalBarPos(el) {
+  const bar = el || evalBarEl;
+  if (!IS_LICHESS || !bar) return;
+  const board = getBoardEl();
+  if (!board) return;
+  const rect = board.getBoundingClientRect();
+  const leftPos = Math.max(4, rect.left - 30);
+  bar.style.top = rect.top + 'px';
+  bar.style.left = leftPos + 'px';
+  bar.style.height = rect.height + 'px';
+}
+
 function injectNextToBoard(el) {
   const board = getBoardEl();
   if (!board) return;
+
+  if (IS_LICHESS) {
+    // On Lichess, inject as fixed overlay — don't touch the board DOM
+    el.style.position = 'fixed';
+    el.style.zIndex = '9999';
+    el.style.pointerEvents = 'none';
+    updateLichessEvalBarPos(el);
+    document.body.appendChild(el);
+    return;
+  }
 
   const wrapper = board.closest('[class*="board-layout"]') ||
                   board.closest('[class*="game-layout"]') ||
@@ -624,40 +812,59 @@ function createArrowCanvas() {
   arrowCanvas = document.createElement('canvas');
   arrowCanvas.id = 'bm-arrow-canvas';
   arrowCanvas.className = 'bm-arrow-canvas';
+  arrowCanvas.style.pointerEvents = 'none';
 
   const rect = board.getBoundingClientRect();
-  arrowCanvas.width = rect.width || 600;
+  arrowCanvas.width  = rect.width  || 600;
   arrowCanvas.height = rect.height || 600;
 
-  // Observe for size changes
   new ResizeObserver(() => resizeCanvas()).observe(board);
 
-  // Try appending inside the board first; fallback to overlaying on parent
-  const parent = board.parentElement;
-  if (parent) {
-    parent.style.position = 'relative';
-    // Position canvas exactly on top of the board
-    arrowCanvas.style.position = 'absolute';
-    arrowCanvas.style.top = board.offsetTop + 'px';
-    arrowCanvas.style.left = board.offsetLeft + 'px';
-    parent.appendChild(arrowCanvas);
+  if (IS_LICHESS) {
+    // Lichess: fixed overlay on body — never touch Lichess DOM
+    arrowCanvas.style.position = 'fixed';
+    arrowCanvas.style.zIndex   = '999';
+    arrowCanvas.style.top      = rect.top  + 'px';
+    arrowCanvas.style.left     = rect.left + 'px';
+    arrowCanvas.style.width    = rect.width  + 'px';
+    arrowCanvas.style.height   = rect.height + 'px';
+    document.body.appendChild(arrowCanvas);
   } else {
-    board.style.position = 'relative';
-    board.appendChild(arrowCanvas);
+    // Chess.com: absolute inside board parent
+    const parent = board.parentElement;
+    if (parent) {
+      parent.style.position = 'relative';
+      arrowCanvas.style.position = 'absolute';
+      arrowCanvas.style.zIndex   = '10';
+      arrowCanvas.style.top  = board.offsetTop  + 'px';
+      arrowCanvas.style.left = board.offsetLeft + 'px';
+      parent.appendChild(arrowCanvas);
+    } else {
+      board.style.position = 'relative';
+      board.appendChild(arrowCanvas);
+    }
   }
 
   arrowCtx = arrowCanvas.getContext('2d');
-  console.log('[BetterMint] Arrow canvas created:', arrowCanvas.width, 'x', arrowCanvas.height);
 }
 
 function resizeCanvas() {
   const board = getBoardEl();
   if (!board || !arrowCanvas) return;
   const rect = board.getBoundingClientRect();
-  arrowCanvas.width = rect.width;
+  arrowCanvas.width  = rect.width;
   arrowCanvas.height = rect.height;
-  arrowCanvas.style.top = board.offsetTop + 'px';
-  arrowCanvas.style.left = board.offsetLeft + 'px';
+  if (IS_LICHESS) {
+    // Sync fixed position to board's current viewport rect
+    arrowCanvas.style.top    = rect.top    + 'px';
+    arrowCanvas.style.left   = rect.left   + 'px';
+    arrowCanvas.style.width  = rect.width  + 'px';
+    arrowCanvas.style.height = rect.height + 'px';
+    updateLichessEvalBarPos();
+  } else {
+    arrowCanvas.style.top  = board.offsetTop  + 'px';
+    arrowCanvas.style.left = board.offsetLeft + 'px';
+  }
   drawArrows();
 }
 
@@ -1118,10 +1325,19 @@ function startBoardObserver() {
 
   // MutationObserver for immediate detection
   const observer = new MutationObserver(() => triggerAnalysis());
-  observer.observe(board, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+
+  if (IS_LICHESS) {
+    // Lichess: observe cg-board pieces (style changes = piece moves)
+    observer.observe(board, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    // Also observe parent for orientation changes (board flip)
+    const wrap = board.closest('.cg-wrap') || board.parentElement;
+    if (wrap) observer.observe(wrap, { attributes: true, attributeFilter: ['class'] });
+  } else {
+    // Chess.com: observe class & style changes
+    observer.observe(board, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+  }
 
   // BACKUP: Polling every 800ms — catches moves that MutationObserver misses
-  // (Chess.com animations can sometimes not trigger attribute changes)
   let lastPolledFEN = '';
   setInterval(() => {
     if (!settings.enabled) return;
@@ -1172,7 +1388,11 @@ function init() {
   });
 }
 
-// Wait for Chess.com to render
+// Window scroll & resize listeners for position syncing
+window.addEventListener('scroll', () => { if (IS_LICHESS) resizeCanvas(); }, { passive: true });
+window.addEventListener('resize', () => resizeCanvas(), { passive: true });
+
+// Wait for Chess.com / Lichess to render
 if (document.readyState === 'complete') {
   setTimeout(init, 800);
 } else {
