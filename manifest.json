@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "ChessSlayer ⚔️",
+  "version": "2.0.0",
+  "description": "Real-time Stockfish 18 NNUE analysis on Chess.com — best move arrows, eval bar, move accuracy ratings, and Human Mode.",
+  "author": "ChessSlayer",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "ChessSlayer ⚔️"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "offscreen"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "host_permissions": [
+    "*://www.chess.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.chess.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "stockfish-18-lite-single.js",
+        "stockfish-18-lite-single.wasm",
+        "stockfish.js",
+        "stockfish.wasm",
+        "icons/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

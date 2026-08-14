@@ -1,0 +1,359 @@
+/* ============================================================
+   BetterMint Clone — Injected Styles
+   ============================================================ */
+
+/* ── Eval Bar ─────────────────────────────────────────────── */
+#bm-eval-bar {
+  position: absolute;
+  left: -30px;
+  top: 0;
+  width: 24px;
+  height: 100%;
+  background: #ffffff;  /* White = white's side (bottom) */
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  z-index: 9500;
+  cursor: default;
+  border: 1px solid rgba(0,0,0,0.2);
+}
+
+.bm-eval-fill {
+  position: absolute;
+  top: 0;       /* Black fills from top */
+  left: 0;
+  width: 100%;
+  height: 50%;  /* 50% = equal position */
+  background: #1a1a2e;  /* Dark = black's side (top) */
+  transition: height 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 5px 5px 0 0;
+}
+
+.bm-eval-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(180deg);
+  font-size: 9px;
+  font-weight: 800;
+  color: #888;
+  text-align: center;
+  letter-spacing: -0.3px;
+  text-shadow: none;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  z-index: 2;
+}
+
+/* ── Arrow Canvas ─────────────────────────────────────────── */
+#bm-arrow-canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  z-index: 9500 !important;
+  border-radius: 4px;
+}
+
+/* ── Floating Control Panel ──────────────────────────────── */
+#bm-panel {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 230px;
+  background: linear-gradient(145deg, rgba(13,13,35,0.97) 0%, rgba(20,20,50,0.97) 100%);
+  border: 1px solid rgba(120,100,255,0.3);
+  border-radius: 16px;
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.6),
+    0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  z-index: 9999;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: #e0e0ff;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  user-select: none;
+  transition: width 0.3s ease, border-radius 0.3s ease;
+}
+
+/* ── Minimized State ──────────────────────────────────────── */
+#bm-panel.minimized {
+  width: 230px;
+  border-radius: 12px;
+}
+
+#bm-panel.minimized .bm-panel-body-settings {
+  display: none;
+}
+
+.bm-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(100,80,255,0.25) 0%, rgba(0,200,150,0.15) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  cursor: grab;
+}
+
+.bm-logo {
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(90deg, #a78bfa, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.3px;
+}
+
+.bm-header-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bm-minimize-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.bm-minimize-btn:hover {
+  background: rgba(167,139,250,0.25);
+  border-color: rgba(167,139,250,0.5);
+  color: #a78bfa;
+}
+
+.bm-toggle-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #34d399, #059669);
+  color: #000;
+  box-shadow: 0 2px 8px rgba(52,211,153,0.4);
+}
+
+.bm-toggle-btn.off {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: #9ca3af;
+  box-shadow: none;
+}
+
+.bm-panel-body {
+  padding: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Settings section (collapsible) */
+.bm-panel-body-settings {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Status section (always visible) */
+.bm-panel-body-status {
+  padding: 8px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.bm-row:last-of-type {
+  border-bottom: none;
+}
+
+.bm-label {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.bm-depth-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.bm-btn-sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.bm-btn-sm:hover {
+  background: rgba(167,139,250,0.25);
+  border-color: rgba(167,139,250,0.5);
+  color: #a78bfa;
+}
+
+.bm-chip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bm-chip.active {
+  background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.15));
+  border-color: rgba(52,211,153,0.4);
+  color: #34d399;
+}
+
+.bm-chip:hover {
+  border-color: rgba(167,139,250,0.4);
+  color: #c4b5fd;
+}
+
+.bm-engine-select {
+  display: flex;
+  gap: 4px;
+}
+
+
+.bm-engine-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.bm-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+
+.bm-status-dot.loading  { background: #f59e0b; animation: bm-pulse 1s infinite; }
+.bm-status-dot.ready    { background: #34d399; }
+.bm-status-dot.analyzing{ background: #60a5fa; animation: bm-pulse 0.6s infinite; }
+.bm-status-dot.error    { background: #ef4444; }
+.bm-status-dot.off      { background: #6b7280; }
+
+@keyframes bm-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.bm-depth-info {
+  text-align: center;
+  font-size: 10px;
+  color: rgba(148,163,184,0.6);
+  letter-spacing: 0.3px;
+}
+
+/* ── Restart Button ──────────────────────────────────────── */
+.bm-restart-btn {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
+}
+
+.bm-restart-btn:hover {
+  background: rgba(239,68,68,0.2);
+  border-color: rgba(239,68,68,0.5);
+  color: #ef4444;
+  transform: rotate(180deg);
+}
+
+/* ── Accuracy Badge (corner fallback) — HIDDEN, only board badge shown ─── */
+#bm-accuracy-badge {
+  display: none;
+}
+
+/* ── Move Classification Badge (on board, at piece) ──────── */
+.bm-move-badge {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  z-index: 9600;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bm-badge-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,255,255,0.8);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+
+@keyframes bm-badge-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  60% { transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
